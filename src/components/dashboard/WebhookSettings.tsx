@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { webhookSettingsService, WebhookSetting } from '../../services/webhookSettings';
+import { supabase } from '../../lib/supabase';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
-import { Bell, BellOff, Save, Loader2 } from 'lucide-react';
+import { Bell, BellOff, Save, Loader2, Send } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const WebhookSettings: React.FC = () => {
@@ -10,6 +11,7 @@ export const WebhookSettings: React.FC = () => {
   const [isEnabled, setIsEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [sendingReport, setSendingReport] = useState(false);
 
   useEffect(() => {
     loadWebhookSetting();
@@ -50,6 +52,34 @@ export const WebhookSettings: React.FC = () => {
       toast.error('Failed to update webhook setting');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSendDailyReport = async () => {
+    // Check if webhook is enabled before sending
+    if (!isEnabled) {
+      toast.error('Please enable webhook notifications first');
+      return;
+    }
+
+    try {
+      setSendingReport(true);
+      
+      // Call the database function to send daily performance report
+      const { data, error } = await supabase.rpc('send_daily_performance_report');
+      
+      if (error) {
+        console.error('Error sending daily report:', error);
+        toast.error('Failed to send report');
+        return;
+      }
+      
+      toast.success('Report will be sent on your Discord');
+    } catch (error) {
+      console.error('Error sending daily report:', error);
+      toast.error('Failed to send report');
+    } finally {
+      setSendingReport(false);
     }
   };
 
@@ -159,6 +189,41 @@ export const WebhookSettings: React.FC = () => {
           <p className="text-xs text-yellow-700 mt-2">
             Each notification includes task details, assigned user, project, and operation type.
           </p>
+        </div>
+
+        {/* Daily Performance Report Section */}
+        <div className="border-t border-gray-200 pt-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-medium text-gray-900">Daily Performance Report</h4>
+              <p className="text-sm text-gray-600 mt-1">
+                {isEnabled 
+                  ? 'Send today\'s performance report to Discord' 
+                  : 'Enable webhook to send reports'}
+              </p>
+            </div>
+            <Button
+              onClick={handleSendDailyReport}
+              disabled={sendingReport || !isEnabled}
+              className={`flex items-center space-x-2 ${
+                !isEnabled 
+                  ? 'bg-gray-400 cursor-not-allowed' 
+                  : 'bg-blue-600 hover:bg-blue-700'
+              } text-white`}
+            >
+              {sendingReport ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Sending...</span>
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4" />
+                  <span>Send Report</span>
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </div>
     </Card>

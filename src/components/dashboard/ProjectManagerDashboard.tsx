@@ -615,8 +615,9 @@ const ProjectManagerDashboard: React.FC<ProjectManagerDashboardProps> = ({ activ
       return isSameDay(due, today) && task.status !== 'completed';
     });
 
-    // Upcoming: due date is within next 3 days (excluding today)
+    // Upcoming: due date is within next 3 days (excluding today) and not completed
     const upcomingTasks = filteredTasks.filter(task => {
+      if (task.status === 'completed') return false;
       const due = new Date(task.due_date);
       const diff = (due.setHours(0,0,0,0) - today.getTime()) / (1000 * 60 * 60 * 24);
       return diff > 0 && diff <= 3;

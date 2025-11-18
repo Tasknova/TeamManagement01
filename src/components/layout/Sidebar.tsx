@@ -60,6 +60,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, isOpen, setIs
     { id: 'project-manager-management', label: 'PM Management', icon: Users },
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'admin-management', label: 'Admin Management', icon: Shield },
+    { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
   const projectManagerTabs = [

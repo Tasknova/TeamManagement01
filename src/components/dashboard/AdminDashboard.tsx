@@ -844,7 +844,25 @@ const handleDeleteHoliday = async (holidayId: string) => {
 
   // Fix: Wrap addTask for TaskForm to match expected signature
   const handleAddTask = async (task: Omit<Task, 'id' | 'created_at' | 'updated_at'>) => {
-    await addTask(task as any); // 'as any' to satisfy the type, since addTask expects created_by
+    console.log('🔥 ADMIN DEBUG: handleAddTask called with:', task);
+    console.log('🔥 ADMIN DEBUG: user context:', user);
+    
+    try {
+      // Ensure task has all required fields
+      const taskWithDefaults = {
+        ...task,
+        created_by: user?.id || task.created_by,
+        progress: task.progress || 0
+      };
+      
+      console.log('🔥 ADMIN DEBUG: Calling addTask with:', taskWithDefaults);
+      const result = await addTask(taskWithDefaults);
+      console.log('🔥 ADMIN DEBUG: addTask result:', result);
+      
+      setIsTaskFormOpen(false);
+    } catch (error) {
+      console.error('🔥 ADMIN DEBUG: Error adding task:', error);
+    }
   };
 
   const handleEditProject = (project: Project) => {
@@ -949,8 +967,9 @@ const handleDeleteHoliday = async (holidayId: string) => {
       return isSameDay(due, today) && task.status !== 'completed';
     });
 
-    // Upcoming: due date is within next 3 days (excluding today)
+    // Upcoming: due date is within next 3 days (excluding today) and not completed
     const upcomingTasks = tasks.filter(task => {
+      if (task.status === 'completed') return false;
       const due = new Date(task.due_date);
       const diff = (due.setHours(0,0,0,0) - today.getTime()) / (1000 * 60 * 60 * 24);
       return diff > 0 && diff <= 3;
@@ -1732,6 +1751,18 @@ const handleDeleteHoliday = async (holidayId: string) => {
             </div>
           </Card>
         </div>
+      </div>
+    );
+  }
+
+  if (activeTab === 'settings') {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">Settings</h2>
+          <p className="text-gray-600 mt-1">Configure webhooks and system settings</p>
+        </div>
+        <WebhookSettings />
       </div>
     );
   }

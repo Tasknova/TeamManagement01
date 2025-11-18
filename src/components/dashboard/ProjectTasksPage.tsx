@@ -33,7 +33,17 @@ const ProjectTasksPage: React.FC = () => {
   const [members, setMembers] = useState<{ id: string; name: string }[]>([]);
   const [admins, setAdmins] = useState<{ id: string; name: string }[]>([]);
   const [taskFilters, setTaskFilters] = useState({ project: projectId });
-  const filteredTasks = filterTasks({ ...taskFilters, project: projectId });
+  
+  // Filter tasks: for members, only show tasks assigned to them; for admins/PMs, show all tasks
+  const allFilteredTasks = filterTasks({ ...taskFilters, project: projectId });
+  const filteredTasks = user?.role === 'member' 
+    ? allFilteredTasks.filter(task => task.user_id === user.id)
+    : allFilteredTasks;
+  
+  // Filter daily tasks: for members, only show tasks assigned to them; for admins/PMs, show all tasks
+  const filteredDailyTasks = user?.role === 'member'
+    ? dailyTasks.filter(task => task.user_id === user.id)
+    : dailyTasks;
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
   const [isDailyTaskFormOpen, setIsDailyTaskFormOpen] = useState(false);
 
@@ -102,11 +112,11 @@ const ProjectTasksPage: React.FC = () => {
   const pendingTasks = filteredTasks.filter(task => task.status === 'pending').length;
   const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
-  // Calculate daily task statistics
-  const totalDailyTasks = dailyTasks.length;
-  const completedDailyTasks = dailyTasks.filter(task => task.status === 'completed').length;
-  const pendingDailyTasks = dailyTasks.filter(task => task.status === 'pending').length;
-  const skippedDailyTasks = dailyTasks.filter(task => task.status === 'skipped').length;
+  // Calculate daily task statistics (using filtered daily tasks)
+  const totalDailyTasks = filteredDailyTasks.length;
+  const completedDailyTasks = filteredDailyTasks.filter(task => task.status === 'completed').length;
+  const pendingDailyTasks = filteredDailyTasks.filter(task => task.status === 'pending').length;
+  const skippedDailyTasks = filteredDailyTasks.filter(task => task.status === 'skipped').length;
 
   // Get project status
   const getProjectStatus = () => {
@@ -301,15 +311,21 @@ const ProjectTasksPage: React.FC = () => {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Project Tasks</h2>
-            <p className="text-gray-600">Manage and track all tasks for this project</p>
+            <p className="text-gray-600">
+              {user?.role === 'member' 
+                ? 'Tasks assigned to you in this project'
+                : 'Manage and track all tasks for this project'}
+            </p>
           </div>
-          <Button 
-            className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 px-6 py-3"
-            onClick={() => setIsTaskFormOpen(true)} 
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            Add New Task
-          </Button>
+          {user?.role !== 'member' && (
+            <Button 
+              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 px-6 py-3"
+              onClick={() => setIsTaskFormOpen(true)} 
+            >
+              <Plus className="w-5 h-5 mr-2" />
+              Add New Task
+            </Button>
+          )}
         </div>
 
         {/* Task Filters */}
@@ -341,15 +357,21 @@ const ProjectTasksPage: React.FC = () => {
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-3">No tasks found</h3>
               <p className="text-gray-600 mb-8 max-w-md mx-auto">
-                {taskFilters.project ? 'No tasks match your current filters. Try adjusting your search criteria.' : 'No tasks have been created for this project yet. Get started by creating your first task.'}
+                {user?.role === 'member' 
+                  ? 'You don\'t have any tasks assigned to you for this project yet.'
+                  : taskFilters.project 
+                    ? 'No tasks match your current filters. Try adjusting your search criteria.' 
+                    : 'No tasks have been created for this project yet. Get started by creating your first task.'}
               </p>
-              <Button 
-                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 px-8 py-3"
-                onClick={() => setIsTaskFormOpen(true)} 
-              >
-                <Plus className="w-5 h-5 mr-2" />
-                Create First Task
-              </Button>
+              {user?.role !== 'member' && (
+                <Button 
+                  className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 px-8 py-3"
+                  onClick={() => setIsTaskFormOpen(true)} 
+                >
+                  <Plus className="w-5 h-5 mr-2" />
+                  Create First Task
+                </Button>
+              )}
             </div>
           </Card>
         ) : (
@@ -378,17 +400,19 @@ const ProjectTasksPage: React.FC = () => {
               <h2 className="text-2xl font-bold text-gray-900">Daily Tasks</h2>
               <p className="text-gray-600">Quick daily tasks and activities for this project</p>
             </div>
-            <Button 
-              className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 px-6 py-3"
-              onClick={() => setIsDailyTaskFormOpen(true)} 
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              Add Daily Task
-            </Button>
+            {user?.role !== 'member' && (
+              <Button 
+                className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 px-6 py-3"
+                onClick={() => setIsDailyTaskFormOpen(true)} 
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Add Daily Task
+              </Button>
+            )}
           </div>
 
           {/* Daily Tasks Grid */}
-          {dailyTasks.length === 0 ? (
+          {filteredDailyTasks.length === 0 ? (
             <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
               <div className="text-center py-16">
                 <div className="w-24 h-24 bg-gradient-to-br from-green-100 to-green-200 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
@@ -396,20 +420,24 @@ const ProjectTasksPage: React.FC = () => {
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-3">No daily tasks found</h3>
                 <p className="text-gray-600 mb-8 max-w-md mx-auto">
-                  No daily tasks have been created for this project yet. Create quick daily tasks to track ongoing activities.
+                  {user?.role === 'member' 
+                    ? 'You don\'t have any daily tasks assigned to you for this project yet.'
+                    : 'No daily tasks have been created for this project yet. Create quick daily tasks to track ongoing activities.'}
                 </p>
-                <Button 
-                  className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 px-8 py-3"
-                  onClick={() => setIsDailyTaskFormOpen(true)} 
-                >
-                  <Plus className="w-5 h-5 mr-2" />
-                  Create First Daily Task
-                </Button>
+                {user?.role !== 'member' && (
+                  <Button 
+                    className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 px-8 py-3"
+                    onClick={() => setIsDailyTaskFormOpen(true)} 
+                  >
+                    <Plus className="w-5 h-5 mr-2" />
+                    Create First Daily Task
+                  </Button>
+                )}
               </div>
             </Card>
           ) : (
             <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {dailyTasks.map(task => (
+              {filteredDailyTasks.map(task => (
                 <div key={task.id} className="group">
                   <DailyTaskCard
                     task={task}

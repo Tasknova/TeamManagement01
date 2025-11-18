@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Project } from '../types';
 import { projectService } from '../services/projects';
 import { useAuth } from '../contexts/AuthContext';
@@ -9,7 +9,7 @@ export function useMemberProjects() {
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
-  const fetchMemberProjects = async () => {
+  const fetchMemberProjects = useCallback(async () => {
     if (!user) {
       setProjects([]);
       setLoading(false);
@@ -29,15 +29,15 @@ export function useMemberProjects() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchMemberProjects();
-  }, [user?.id]);
+  }, [fetchMemberProjects]);
 
-  const refetchProjects = () => {
+  const refetchProjects = useCallback(() => {
     fetchMemberProjects();
-  };
+  }, [fetchMemberProjects]);
 
   return { 
     projects, 

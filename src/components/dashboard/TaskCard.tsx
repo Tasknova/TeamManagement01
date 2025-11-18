@@ -1,9 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Calendar, User, Trash2, CheckCircle2, AlertCircle, Pencil, Eye, Paperclip, Link, File, X } from 'lucide-react';
 import { fileUploadService } from '../../services/fileUpload';
 import { Task, TaskAttachment } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDeleteConfirmation } from '../../hooks/useDeleteConfirmation';
+import { supabase } from '../../lib/supabase';
 import Card from '../ui/Card';
 import Badge from '../ui/Badge';
 import Button from '../ui/Button';
@@ -44,6 +45,37 @@ const TaskCard: React.FC<TaskCardProps> = ({
     hideDeleteConfirmation, 
     confirmDelete 
   } = useDeleteConfirmation();
+  const [projectName, setProjectName] = useState<string | null>(null);
+  
+  // Fetch project name if not in projects array
+  useEffect(() => {
+    if (task.project_id) {
+      // First check if project is in the projects array
+      const foundProject = projects.find(p => p.id === task.project_id);
+      if (foundProject) {
+        setProjectName(foundProject.name);
+      } else {
+        // Fetch project name from database
+        const fetchProjectName = async () => {
+          try {
+            const { data, error } = await supabase
+              .from('projects')
+              .select('name')
+              .eq('id', task.project_id)
+              .single();
+            
+            if (!error && data) {
+              setProjectName(data.name);
+            }
+          } catch (err) {
+            console.error('Error fetching project name:', err);
+          }
+        };
+        fetchProjectName();
+      }
+    }
+  }, [task.project_id, projects]);
+  
   // Helper to check if a date is before today
   const isBeforeToday = (date: Date) => {
     const today = new Date();
@@ -690,14 +722,16 @@ const TaskCard: React.FC<TaskCardProps> = ({
                   </div>
                 </div>
 
-                                 {task.project_id && projects && projects.length > 0 && (
+                 {task.project_id && (
                    <div className="flex items-center">
                      <div className="w-5 h-5 bg-blue-100 rounded mr-3 flex items-center justify-center">
                        <span className="text-xs text-blue-600 font-bold">P</span>
                      </div>
                      <div>
                        <p className="text-sm font-medium text-gray-700">Project</p>
-                       <p className="text-sm text-gray-900">{projects.find(p => p.id === task.project_id)?.name || 'Unknown Project'}</p>
+                       <p className="text-sm text-gray-900">
+                         {projectName || projects.find(p => p.id === task.project_id)?.name || 'Loading...'}
+                       </p>
                      </div>
                    </div>
                  )}

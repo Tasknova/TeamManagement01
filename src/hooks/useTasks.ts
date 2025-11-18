@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { Task, TaskFilters } from '../types';
 import { deletedTasksService } from '../services/deletedTasks';
 import { useAuth } from '../contexts/AuthContext';
+import { webhookService } from '../services/webhooks';
 
 export const useTasks = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -94,6 +95,8 @@ export const useTasks = () => {
 
   const addTask = async (task: Omit<Task, 'id' | 'created_at' | 'updated_at'>) => {
     try {
+      console.log('🔥 TASK DEBUG: addTask called with:', task);
+      
       const { data, error } = await supabase
         .from('tasks')
         .insert([task])
@@ -102,11 +105,50 @@ export const useTasks = () => {
 
       if (error) throw error;
       
+      console.log('🔥 TASK DEBUG: Task inserted successfully:', data);
+      
       // Fetch user data for the new task
       const tasksWithUsers = await fetchUserDataForTasks([data]);
       const taskWithUser = tasksWithUsers[0];
       
+      console.log('🔥 TASK DEBUG: Task with user data:', taskWithUser);
+      
       setTasks(prev => [taskWithUser, ...prev]);
+
+      // Send webhook notification for task creation (non-blocking)
+      if (taskWithUser) {
+        console.log('🔥 TASK DEBUG: About to send webhook notification');
+        
+        // Fetch additional data for webhook
+        const createdByData = await webhookService.getUserData(taskWithUser.created_by);
+        const projectData = await webhookService.getProjectData(taskWithUser.project_id || '');
+        
+        webhookService.sendTaskWebhook({
+          id: taskWithUser.id,
+          task_name: taskWithUser.task_name,
+          description: taskWithUser.description,
+          status: taskWithUser.status,
+          priority: taskWithUser.priority,
+          user_id: taskWithUser.user_id,
+          user_name: taskWithUser.user?.name,
+          user_email: taskWithUser.user?.email,
+          created_by: taskWithUser.created_by,
+          created_by_name: createdByData?.name,
+          created_by_email: createdByData?.email,
+          project_id: taskWithUser.project_id,
+          project_name: projectData?.name,
+          due_date: taskWithUser.due_date,
+          progress: taskWithUser.progress,
+          event_type: 'task_created',
+          created_at: taskWithUser.created_at,
+          updated_at: taskWithUser.updated_at
+        }).catch(webhookError => {
+          console.error('🔥 TASK DEBUG: Failed to send task creation webhook:', webhookError);
+        });
+      } else {
+        console.log('🔥 TASK DEBUG: No taskWithUser data, skipping webhook');
+      }
+      
       return taskWithUser;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -117,6 +159,14 @@ export const useTasks = () => {
   const updateTask = async (id: string, updates: Partial<Task>) => {
     try {
       console.log('useTasks: updateTask called with:', { id, updates });
+      
+      // Get the old task data before updating (only if status is being updated)
+      let oldStatus: string | undefined;
+      if (updates.status) {
+        const oldTask = tasks.find(task => task.id === id);
+        oldStatus = oldTask?.status;
+      }
+      
       const { data, error } = await supabase
         .from('tasks')
         .update(updates)
@@ -132,6 +182,38 @@ export const useTasks = () => {
       const taskWithUser = tasksWithUsers[0];
       
       setTasks(prev => prev.map(task => task.id === id ? taskWithUser : task));
+
+      // Send webhook notification ONLY for status updates
+      if (taskWithUser && user && updates.status && oldStatus !== updates.status) {
+        // Fetch additional data for webhook
+        const updatedByData = await webhookService.getUserData(user.id);
+        const projectData = await webhookService.getProjectData(taskWithUser.project_id || '');
+        
+        webhookService.sendTaskWebhook({
+          id: taskWithUser.id,
+          task_name: taskWithUser.task_name,
+          description: taskWithUser.description,
+          status: taskWithUser.status,
+          old_status: oldStatus,
+          priority: taskWithUser.priority,
+          user_id: taskWithUser.user_id,
+          user_name: taskWithUser.user?.name,
+          user_email: taskWithUser.user?.email,
+          updated_by: user.id,
+          updated_by_name: updatedByData?.name,
+          updated_by_email: updatedByData?.email,
+          project_id: taskWithUser.project_id,
+          project_name: projectData?.name,
+          due_date: taskWithUser.due_date,
+          progress: taskWithUser.progress,
+          event_type: 'task_updated',
+          created_at: taskWithUser.created_at,
+          updated_at: taskWithUser.updated_at
+        }).catch(webhookError => {
+          console.error('Failed to send task update webhook:', webhookError);
+        });
+      }
+
       return taskWithUser;
     } catch (err) {
       console.error('useTasks: Error updating task:', err);
@@ -165,6 +247,38 @@ export const useTasks = () => {
 
       if (error) throw error;
       setTasks(prev => prev.filter(task => task.id !== id));
+
+      // Send webhook notification for task deletion (non-blocking)
+      // Fetch additional data for webhook
+      const deletedByData = await webhookService.getUserData(user.id);
+      const createdByData = await webhookService.getUserData(taskToDelete.created_by);
+      const projectData = await webhookService.getProjectData(taskToDelete.project_id || '');
+      
+      webhookService.sendTaskWebhook({
+        id: taskToDelete.id,
+        task_name: taskToDelete.task_name,
+        description: taskToDelete.description,
+        status: taskToDelete.status,
+        priority: taskToDelete.priority,
+        user_id: taskToDelete.user_id,
+        user_name: taskToDelete.user?.name,
+        user_email: taskToDelete.user?.email,
+        created_by: taskToDelete.created_by,
+        created_by_name: createdByData?.name,
+        created_by_email: createdByData?.email,
+        project_id: taskToDelete.project_id,
+        project_name: projectData?.name,
+        due_date: taskToDelete.due_date,
+        progress: taskToDelete.progress,
+        event_type: 'task_deleted',
+        deleted_by: user.id,
+        deleted_by_name: deletedByData?.name,
+        deleted_by_email: deletedByData?.email,
+        created_at: taskToDelete.created_at,
+        updated_at: taskToDelete.updated_at
+      }).catch(webhookError => {
+        console.error('Failed to send task deletion webhook:', webhookError);
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       throw err;

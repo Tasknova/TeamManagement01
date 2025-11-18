@@ -9,26 +9,28 @@ export interface LoginResponse {
 export const authService = {
   async loginUser(email: string, password: string, role: 'admin' | 'member' | 'project_manager'): Promise<LoginResponse> {
     try {
+      // Convert email to lowercase before querying
+      const normalizedEmail = email.toLowerCase().trim();
       let user, error;
       if (role === 'admin') {
         ({ data: user, error } = await supabase
           .from('admins')
           .select('*')
-          .eq('email', email)
+          .eq('email', normalizedEmail)
           .eq('is_active', true)
           .single());
       } else if (role === 'project_manager') {
         ({ data: user, error } = await supabase
           .from('project_managers')
           .select('*')
-          .eq('email', email)
+          .eq('email', normalizedEmail)
           .eq('is_active', true)
           .single());
       } else {
         ({ data: user, error } = await supabase
           .from('members')
           .select('*')
-          .eq('email', email)
+          .eq('email', normalizedEmail)
           .eq('is_active', true)
           .single());
       }
@@ -67,12 +69,14 @@ export const authService = {
     try {
       // In production, hash the password with bcrypt
       const password_hash = btoa(memberData.password); // Simple encoding for demo
+      // Convert email to lowercase before storing
+      const normalizedEmail = memberData.email.toLowerCase().trim();
 
       const { data: member, error } = await supabase
         .from('members')
         .insert({
           name: memberData.name,
-          email: memberData.email,
+          email: normalizedEmail,
           password_hash,
           phone: memberData.phone,
           department: memberData.department,
@@ -98,9 +102,14 @@ export const authService = {
   },
 
   async updateMember(id: string, updates: Partial<Member>, adminUser?: { id: string; name: string }): Promise<Member> {
+    // Normalize email to lowercase if it's being updated
+    const normalizedUpdates = { ...updates };
+    if (normalizedUpdates.email) {
+      normalizedUpdates.email = normalizedUpdates.email.toLowerCase().trim();
+    }
     const { data, error } = await supabase
       .from('members')
-      .update(updates)
+      .update(normalizedUpdates)
       .eq('id', id)
       .select()
       .single();
@@ -178,11 +187,13 @@ export const authService = {
   }): Promise<Admin> {
     try {
       const password_hash = btoa(adminData.password.trim()); // Simple encoding for demo
+      // Convert email to lowercase before storing
+      const normalizedEmail = adminData.email.toLowerCase().trim();
       const { data: admin, error } = await supabase
         .from('admins')
         .insert({
           name: adminData.name,
-          email: adminData.email,
+          email: normalizedEmail,
           password_hash,
           phone: adminData.phone,
         })
@@ -204,9 +215,14 @@ export const authService = {
   },
 
   async updateAdmin(id: string, updates: Partial<Admin>): Promise<Admin> {
+    // Normalize email to lowercase if it's being updated
+    const normalizedUpdates = { ...updates };
+    if (normalizedUpdates.email) {
+      normalizedUpdates.email = normalizedUpdates.email.toLowerCase().trim();
+    }
     const { data, error } = await supabase
       .from('admins')
-      .update(updates)
+      .update(normalizedUpdates)
       .eq('id', id)
       .select()
       .single();
@@ -387,11 +403,13 @@ export const authService = {
   }): Promise<ProjectManager> {
     try {
       const password_hash = btoa(pmData.password); // Simple encoding for demo
+      // Convert email to lowercase before storing
+      const normalizedEmail = pmData.email.toLowerCase().trim();
       const { data: projectManager, error } = await supabase
         .from('project_managers')
         .insert({
           name: pmData.name,
-          email: pmData.email,
+          email: normalizedEmail,
           password_hash,
           phone: pmData.phone,
           department: pmData.department,
@@ -415,9 +433,14 @@ export const authService = {
   },
 
   async updateProjectManager(id: string, updates: Partial<ProjectManager>): Promise<ProjectManager> {
+    // Normalize email to lowercase if it's being updated
+    const normalizedUpdates = { ...updates };
+    if (normalizedUpdates.email) {
+      normalizedUpdates.email = normalizedUpdates.email.toLowerCase().trim();
+    }
     const { data, error } = await supabase
       .from('project_managers')
-      .update(updates)
+      .update(normalizedUpdates)
       .eq('id', id)
       .select()
       .single();

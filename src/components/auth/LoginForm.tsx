@@ -18,7 +18,8 @@ const LoginForm: React.FC<LoginFormProps> = ({ role, onBack }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await login(email, password, role);
+      // Convert email to lowercase before login
+      await login(email.toLowerCase().trim(), password, role);
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Login failed');
     }

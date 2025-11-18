@@ -20,17 +20,55 @@ export const webhookSettingsService = {
         .from('webhook_settings')
         .select('*')
         .eq('setting_key', 'task_webhook_enabled')
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Error fetching webhook setting:', error);
-        return null;
+        // Return default enabled webhook on error
+        return {
+          id: '',
+          setting_key: 'task_webhook_enabled',
+          setting_value: {
+            enabled: true,
+            url: 'https://n8nautomation.site/webhook/9f329008-2786-495e-9efd-61975bb46186'
+          },
+          description: 'Task webhook notifications',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+      }
+
+      if (!data) {
+        console.warn('No webhook settings found, using default enabled webhook');
+        // Return default enabled webhook
+        return {
+          id: '',
+          setting_key: 'task_webhook_enabled',
+          setting_value: {
+            enabled: true,
+            url: 'https://n8nautomation.site/webhook/9f329008-2786-495e-9efd-61975bb46186'
+          },
+          description: 'Task webhook notifications',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
       }
 
       return data;
     } catch (error) {
       console.error('Error in getWebhookSetting:', error);
-      return null;
+      // Return default enabled webhook on error
+      return {
+        id: '',
+        setting_key: 'task_webhook_enabled',
+        setting_value: {
+          enabled: true,
+          url: 'https://n8nautomation.site/webhook/9f329008-2786-495e-9efd-61975bb46186'
+        },
+        description: 'Task webhook notifications',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
     }
   },
 
@@ -42,13 +80,16 @@ export const webhookSettingsService = {
       
       const { data, error } = await supabase
         .from('webhook_settings')
-        .update({
+        .upsert({
+          setting_key: 'task_webhook_enabled',
           setting_value: {
             enabled,
             url: url || currentUrl
-          }
+          },
+          description: 'Task webhook notifications'
+        }, {
+          onConflict: 'setting_key'
         })
-        .eq('setting_key', 'task_webhook_enabled')
         .select()
         .single();
 

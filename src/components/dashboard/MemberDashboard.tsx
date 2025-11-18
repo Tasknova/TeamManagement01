@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, User, Bell, CheckCircle2, Calendar, Clock, AlertCircle, CheckSquare, Play, Pause } from 'lucide-react';
 import { useTasks } from '../../hooks/useTasks';
 import { useLeaves } from '../../hooks/useLeaves';
@@ -33,7 +33,7 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({ activeTab }) => {
   const { tasks, loading: tasksLoading, addTask, updateTask, deleteTask, filterTasks, refetchTasks } = useTasks();
   const { leaves, loading: leavesLoading, error: leavesError, addLeave, updateLeave, deleteLeave } = useLeaves();
   const { user } = useAuth();
-  const { projects, loading: projectsLoading, error: projectsError } = useMemberProjects();
+  const { projects, loading: projectsLoading, error: projectsError, refetchProjects } = useMemberProjects();
   
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
   const [taskFilters, setTaskFilters] = useState<TaskFilters>({});
@@ -289,6 +289,8 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({ activeTab }) => {
           const affected = payload.eventType === 'DELETE' ? payload.old : payload.new;
           if (affected && affected.user_id === user.id) {
             refetchTasks();
+            // Refetch projects when tasks change (in case project assignment changed)
+            refetchProjects();
           }
         }
       )
@@ -296,7 +298,16 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({ activeTab }) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, refetchTasks]);
+  }, [user, refetchTasks, refetchProjects]);
+
+  // Refetch projects when projects tab is opened (only when tab changes to 'projects')
+  const prevActiveTabRef = useRef<string>('');
+  useEffect(() => {
+    if (activeTab === 'projects' && prevActiveTabRef.current !== 'projects' && user) {
+      refetchProjects();
+    }
+    prevActiveTabRef.current = activeTab;
+  }, [activeTab, user, refetchProjects]);
 
   // Fetch holidays
   useEffect(() => {
@@ -515,8 +526,9 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({ activeTab }) => {
       const due = new Date(task.due_date);
       return isSameDay(due, today) && task.status !== 'completed';
     });
-    // Upcoming: due date is within next 3 days (excluding today)
+    // Upcoming: due date is within next 3 days (excluding today) and not completed
     const upcomingTasks = memberTasks.filter(task => {
+      if (task.status === 'completed') return false;
       const due = new Date(task.due_date);
       const diff = (due.setHours(0,0,0,0) - today.getTime()) / (1000 * 60 * 60 * 24);
       return diff > 0 && diff <= 3;
@@ -881,7 +893,11 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({ activeTab }) => {
                     }
                   })
                   .map(project => {
-                    const projectTasks = tasks.filter(task => task.project_id === project.id);
+                    // For members, only show tasks assigned to them; for admins/PMs, show all tasks
+                    const projectTasks = tasks.filter(task => 
+                      task.project_id === project.id && 
+                      (user?.role === 'member' ? task.user_id === user.id : true)
+                    );
                     return (
                       <ProjectCard key={project.id} project={project} tasks={projectTasks} />
                     );
