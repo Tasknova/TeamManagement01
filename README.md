@@ -29,12 +29,7 @@ A comprehensive team management application built with React, TypeScript, and Su
 3. Set up your Supabase project and configure environment variables
 4. Run the development server: `npm run dev`
 
-## Demo Accounts
-
-- **Admin**: admin@company.com / password123
-- **Project Manager**: pm@company.com / password123  
-- **Team Member**: john@company.com / password123
 
 ---
 
-© 2024 Tasknova. All rights reserved.
+© 2025 Tasknova. All rights reserved.
