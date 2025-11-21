@@ -595,10 +595,12 @@ const ProjectManagerDashboard: React.FC<ProjectManagerDashboardProps> = ({ activ
     today.setHours(0, 0, 0, 0);
     const isSameDay = (d1: Date, d2: Date) => d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
 
-    // Filter tasks to only show tasks from assigned projects
+    // Filter tasks to show:
+    // 1. Tasks from assigned projects
+    // 2. Tasks assigned directly to this PM (user_id matches)
     const assignedProjectIds = assignedProjects.map(p => p.id);
     const filteredTasks = tasks.filter(task => 
-      !task.project_id || assignedProjectIds.includes(task.project_id)
+      !task.project_id || assignedProjectIds.includes(task.project_id) || task.user_id === user?.id
     );
 
     // Recently Completed: completed within last 3 days
@@ -724,10 +726,12 @@ const ProjectManagerDashboard: React.FC<ProjectManagerDashboardProps> = ({ activ
   }
 
   if (activeTab === 'tasks') {
-    // Filter tasks to only show tasks from assigned projects
+    // Filter tasks to show:
+    // 1. Tasks from assigned projects
+    // 2. Tasks assigned directly to this PM (user_id matches)
     const assignedProjectIds = assignedProjects.map(p => p.id);
     const tasksForAssignedProjects = tasks.filter(task => 
-      !task.project_id || assignedProjectIds.includes(task.project_id)
+      !task.project_id || assignedProjectIds.includes(task.project_id) || task.user_id === user?.id
     );
     const filteredTasksForDisplay = filterTasks(taskFilters, tasksForAssignedProjects);
 
@@ -768,7 +772,7 @@ const ProjectManagerDashboard: React.FC<ProjectManagerDashboardProps> = ({ activ
             members={members}
             admins={admins}
             projectManagers={projectManagers}
-            projects={assignedProjects.map(p => ({ id: p.id, name: p.name }))}
+            projects={projects.map(p => ({ id: p.id, name: p.name }))}
           />
         </div>
 
@@ -822,7 +826,7 @@ const ProjectManagerDashboard: React.FC<ProjectManagerDashboardProps> = ({ activ
                         members={members}
                         admins={admins}
                         projectManagers={projectManagers}
-                        projects={assignedProjects.map(p => ({ id: p.id, name: p.name }))}
+                        projects={projects.map(p => ({ id: p.id, name: p.name }))}
                       />
                     </div>
                   ))
@@ -840,7 +844,7 @@ const ProjectManagerDashboard: React.FC<ProjectManagerDashboardProps> = ({ activ
                 members={members}
                 admins={admins}
                 projectManagers={projectManagers}
-                projects={assignedProjects.map(p => ({ id: p.id, name: p.name }))}
+                projects={projects.map(p => ({ id: p.id, name: p.name }))}
               />
             )}
 
@@ -854,7 +858,7 @@ const ProjectManagerDashboard: React.FC<ProjectManagerDashboardProps> = ({ activ
                 members={members}
                 admins={admins}
                 projectManagers={projectManagers}
-                projects={assignedProjects.map(p => ({ id: p.id, name: p.name }))}
+                projects={projects.map(p => ({ id: p.id, name: p.name }))}
               />
             )}
           </>
@@ -871,11 +875,10 @@ const ProjectManagerDashboard: React.FC<ProjectManagerDashboardProps> = ({ activ
   }
 
   if (activeTab === 'my-tasks') {
-    // Filter tasks to show only tasks assigned to the current project manager from assigned projects
-    const assignedProjectIds = assignedProjects.map(p => p.id);
+    // Filter tasks to show only tasks assigned to the current project manager
+    // No need to check project assignment since we're filtering by user_id
     const myTasks = tasks.filter(task => 
-      task.user_id === user?.id && 
-      (!task.project_id || assignedProjectIds.includes(task.project_id))
+      task.user_id === user?.id
     );
     const filteredMyTasks = filterTasks(taskFilters, myTasks);
 
@@ -904,14 +907,12 @@ const ProjectManagerDashboard: React.FC<ProjectManagerDashboardProps> = ({ activ
             filters={taskFilters}
             onFiltersChange={setTaskFilters}
             showMemberFilter={false}
-            members={members}
-            admins={admins}
-            projectManagers={projectManagers}
-            projects={assignedProjects.map(p => ({ id: p.id, name: p.name }))}
-          />
-        </div>
-
-        {/* Error Message */}
+                  members={members}
+                  admins={admins}
+                  projectManagers={projectManagers}
+                  projects={projects.map(p => ({ id: p.id, name: p.name }))}
+                />
+              </div>        {/* Error Message */}
         {tasksError && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
             <div className="flex items-center">
@@ -959,7 +960,7 @@ const ProjectManagerDashboard: React.FC<ProjectManagerDashboardProps> = ({ activ
                     members={members}
                     admins={admins}
                     projectManagers={projectManagers}
-                    projects={assignedProjects.map(p => ({ id: p.id, name: p.name }))}
+                    projects={projects.map(p => ({ id: p.id, name: p.name }))}
                   />
                 </div>
               ))
